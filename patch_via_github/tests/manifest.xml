@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <!-- Test-only manifest for patch_via_github unit tests. Never built. -->
+  <remote name="couchbase" fetch="https://github.com/couchbase/" />
+
+  <default remote="couchbase" revision="master" />
+
+  <project name="tlm" revision="master" groups="kv"/>
+  <project name="ns_server" groups="bsl"/>
+  <project name="geocouch" revision="3e8040787139e3c67766ce50398860c185737b8a"/>
+  <project name="eventing" path="goproj/src/github.com/couchbase/eventing"/>
+  <project name="build" groups="build"/>
+  <project name="server-ui" revision="main"/>
+  <project name="couchbase-cli" path="couchbase-cli-tools" revision="master"/>
+  <project name="cbgt"/>
+  <project name="stellar-gateway" revision="a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"/>
+  <project name="manifest" revision="main"/>
+
+</manifest>
