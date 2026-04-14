@@ -76,7 +76,7 @@ class ParseCSVs(argparse.Action):
 class GitHubPR:
     """Encapsulation of relevant information for a given GitHub pull request"""
 
-    def __init__(self, data):
+    def __init__(self, data, use_ssh=False):
         """
         Initialize with key information for a GitHub PR
         """
@@ -91,9 +91,12 @@ class GitHubPR:
         self.html_url = data['html_url']
         self.labels = [label['name'] for label in data.get('labels', [])]
 
-        repo_clone_url = data['base']['repo']['clone_url']
+        if use_ssh:
+            repo_url = data['base']['repo']['ssh_url']
+        else:
+            repo_url = data['base']['repo']['clone_url']
         self.fetch_command = [
-            'git', 'fetch', repo_clone_url, f'pull/{self.number}/head'
+            'git', 'fetch', repo_url, f'pull/{self.number}/head'
         ]
         self.cherry_pick_command = ['git', 'cherry-pick', 'FETCH_HEAD']
         self.checkout_command = ['git', 'checkout', 'FETCH_HEAD']
@@ -113,12 +116,13 @@ class GitHubPatches:
 
     GITHUB_API_URL = 'https://api.github.com'
 
-    def __init__(self, token, default_org=None, checkout=False):
+    def __init__(self, token, default_org=None, checkout=False, use_ssh=True):
         """Initial GitHub connection and set base options"""
 
         self.token = token
         self.default_org = default_org
         self.checkout = checkout
+        self.use_ssh = use_ssh
         self.session = requests.Session()
         self.session.headers.update({
             'Accept': 'application/vnd.github+json',
@@ -148,7 +152,8 @@ class GitHubPatches:
         self.sha_re = re.compile(r'[0-9a-f]{40}')
 
     @classmethod
-    def from_config_file(cls, config_path, default_org=None, checkout=False):
+    def from_config_file(cls, config_path, default_org=None, checkout=False,
+                         use_ssh=True):
         """
         Factory method: construct a GitHubPatches from the path to a
         config file
@@ -181,7 +186,11 @@ class GitHubPatches:
             with contextlib.suppress(configparser.NoOptionError):
                 org = config.get('main', 'default_org')
 
-        return cls(token, org, checkout)
+        ssh = use_ssh
+        with contextlib.suppress(configparser.NoOptionError):
+            ssh = config.getboolean('main', 'ssh')
+
+        return cls(token, org, checkout, ssh)
 
     def set_only_manifest(self, only_manifest):
         self.only_manifest = only_manifest
@@ -279,7 +288,7 @@ class GitHubPatches:
 
         logger.debug(f'Fetching PR {org}/{repo}#{number}')
         data = self._api_get(f'/repos/{org}/{repo}/pulls/{number}')
-        return GitHubPR(data)
+        return GitHubPR(data, use_ssh=self.use_ssh)
 
     def get_open_prs_by_label(self, org, repo, label):
         """Fetch all open PRs with a given label"""
@@ -294,7 +303,7 @@ class GitHubPatches:
         for pr_data in data:
             pr_labels = [lbl['name'] for lbl in pr_data.get('labels', [])]
             if label in pr_labels:
-                pr = GitHubPR(pr_data)
+                pr = GitHubPR(pr_data, use_ssh=self.use_ssh)
                 prs[pr.number] = pr
         return prs
 
@@ -577,6 +586,10 @@ def main():
     parser.add_argument('-C', '--checkout', action='store_true',
                         help='When specified, checkout the PR head '
                              'rather than cherry-picking')
+    parser.add_argument('--no-ssh', dest='use_ssh',
+                        action='store_false', default=True,
+                        help='Use HTTPS URLs for git fetch instead of '
+                             'SSH (also configurable via ini: ssh = false)')
     parser.add_argument('-V', '--version', action='version',
                         help='Display patch_via_github version information',
                         version=version_string)
@@ -602,7 +615,7 @@ def main():
     logger.info(f"******** {version_string} ********")
     print_divider()
     github_patches = GitHubPatches.from_config_file(
-        args.github_config, args.default_org, args.checkout
+        args.github_config, args.default_org, args.checkout, args.use_ssh
     )
     if args.only_manifest:
         github_patches.set_only_manifest(True)

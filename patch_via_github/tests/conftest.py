@@ -22,6 +22,7 @@ def make_pr_api_response(
                 "name": repo_name,
                 "full_name": f"{org}/{repo_name}",
                 "clone_url": f"https://github.com/{org}/{repo_name}.git",
+                "ssh_url": f"git@github.com:{org}/{repo_name}.git",
             },
         },
         "head": {

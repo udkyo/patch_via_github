@@ -102,6 +102,13 @@ class TestGitHubPR:
         assert "https://github.com/myorg/server-ui.git" in pr.fetch_command
         assert "pull/7/head" in pr.fetch_command
 
+    def test_fetch_command_uses_ssh_url(self):
+        data = make_pr_api_response(7, "server-ui", org="myorg")
+        pr = app.GitHubPR(data, use_ssh=True)
+        assert "git@github.com:myorg/server-ui.git" in pr.fetch_command
+        assert "pull/7/head" in pr.fetch_command
+        assert "https://github.com" not in str(pr.fetch_command)
+
 
 # ===================================================================
 # GitHubPatches — Configuration
@@ -161,6 +168,34 @@ class TestGitHubPatchesConfig:
     def test_session_headers_without_token(self):
         gp = app.GitHubPatches("")
         assert 'Authorization' not in gp.session.headers
+
+    def test_ssh_flag(self, config_file):
+        gp = app.GitHubPatches.from_config_file(config_file, use_ssh=True)
+        assert gp.use_ssh is True
+
+    def test_ssh_from_config(self, tmp_path):
+        ini = tmp_path / "ssh.ini"
+        ini.write_text(
+            "[main]\n"
+            "token = ghp_test\n"
+            "ssh = true\n"
+        )
+        gp = app.GitHubPatches.from_config_file(str(ini))
+        assert gp.use_ssh is True
+
+    def test_ssh_default_true(self, config_file):
+        gp = app.GitHubPatches.from_config_file(config_file)
+        assert gp.use_ssh is True
+
+    def test_ssh_disabled_via_config(self, tmp_path):
+        ini = tmp_path / "no_ssh.ini"
+        ini.write_text(
+            "[main]\n"
+            "token = ghp_test\n"
+            "ssh = false\n"
+        )
+        gp = app.GitHubPatches.from_config_file(str(ini))
+        assert gp.use_ssh is False
 
 
 # ===================================================================
