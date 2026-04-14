@@ -318,7 +318,13 @@ class GitHubPatches:
         if id_type == 'pr':
             for pr_ref in pr_refs:
                 org, repo, number = self.parse_pr_reference(pr_ref)
-                pr = self.get_pr(org, repo, number)
+                try:
+                    pr = self.get_pr(org, repo, number)
+                except RuntimeError as exc:
+                    logger.error(
+                        f'Failed to fetch {org}/{repo}#{number}: {exc}'
+                    )
+                    sys.exit(1)
 
                 if pr.number in all_prs:
                     continue

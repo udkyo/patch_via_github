@@ -391,6 +391,16 @@ class TestManifestResolution:
 class TestGetReviewsByPr:
     """resolve_prs with id_type='pr'."""
 
+    def test_pr_not_found_exits(self, gp_with_manifest):
+        gp = gp_with_manifest
+        with patch.object(
+            gp, '_api_get',
+            side_effect=RuntimeError("GitHub API error: 404 Not Found")
+        ):
+            with pytest.raises(SystemExit) as e:
+                gp.resolve_prs(["couchbase/server-ui#999"], 'pr')
+            assert e.value.code == 1
+
     def test_open_pr_matching_branch_included(self, gp_with_manifest):
         gp = gp_with_manifest
         pr_data = make_pr_api_response(10, "server-ui", base_ref="main")
